@@ -1,0 +1,14 @@
+{
+    "files.exclude": {
+        "**/vendor": true
+    },
+    "search.exclude": {
+        "**/vendor": true
+    },
+    "files.watcherExclude": {
+        "**/vendor/**": true
+    },
+    "intelephense.files.exclude": [
+        "**/vendor/**"
+    ]
+}

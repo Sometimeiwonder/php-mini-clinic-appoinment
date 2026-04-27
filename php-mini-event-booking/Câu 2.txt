@@ -1,0 +1,28 @@
+1. Hạn chế khi lưu dữ liệu bằng array PHP (src/Data/shows.php):
+
+Cập nhật dữ liệu: Không thể lưu lại thay đổi. Khi khách đặt vé thành công, ta không thể trừ số available_tickets trực tiếp vào file shows.php. Request tiếp theo gửi lên dữ liệu lại bị reset về như cũ.
+Tìm kiếm: Phải dùng vòng lặp foreach duyệt qua toàn bộ mảng để tìm đúng show_id. Nếu hệ thống có 10.000 sự kiện, việc lặp mảng sẽ làm server phản hồi rất chậm.
+Mở rộng: Load một mảng quá lớn vào bộ nhớ (RAM) ở mỗi request sẽ gây quá tải server (Out of memory).
+Đồng bộ: Nếu 2 người cùng nhấn POST đặt vé "Tech Summit 2026" ở cùng một mili-giây, file array không có cơ chế khóa (locking) như Database, dẫn đến tình trạng "overselling" (bán lố số vé thực tế).
+2. Các kiểm tra (validation) cần bổ sung cho endpoint POST đặt vé: Để dữ liệu tin cậy hơn khi đưa vào thực tế, em cần bổ sung:
+
+Kiểm tra email: Dùng filter_var($email, FILTER_VALIDATE_EMAIL) để đảm bảo khách nhập đúng chuẩn email, phục vụ việc gửi vé QR code sau này.
+Kiểm tra số lượng vé hợp lệ: Không chỉ kiểm tra số lượng > 0, mà còn phải kiểm tra ticket_count <= available_tickets của chính sự kiện đó (ví dụ show có id 102 đã hết vé thì không cho đặt).
+Kiểm tra trùng lặp (Spam): Kiểm tra xem email này đã đặt vé cho show_id này trước đó chưa để tránh việc 1 người dùng tool spam giữ hết chỗ.
+Kiểm tra rỗng/Sai kiểu: Ép kiểu chặt chẽ (int) $showId và kiểm tra tên khách hàng không được chứa ký tự đặc biệt hay chỉ chứa khoảng trắng (trim($customer) === '').
+3. Lợi ích của việc trả đúng mã lỗi HTTP (404, 405, 415, 422):
+
+Frontend: Dễ dàng viết logic xử lý tự động. Ví dụ: Nếu nhận 422, frontend biết là lỗi nhập liệu nên sẽ hiển thị viền đỏ ở ô input báo khách hàng nhập lại. Nếu nhận 201 Created, frontend tự động chuyển sang trang "Cảm ơn đã đặt vé".
+Người dùng: Nhận được thông báo lỗi cụ thể thay vì màn hình trắng. (VD: "Chỉ được mua tối đa 4 vé" thay vì lỗi chung chung "500 Server Error").
+Debugging: Lập trình viên chỉ cần nhìn tab Network trên trình duyệt là bắt được bệnh. Thấy 405 Method Not Allowed là biết ngay frontend đang gọi nhầm method GET thay vì POST vào /bookings.
+Mở rộng API: Tuân thủ đúng chuẩn RESTful giúp các bên thứ 3 (như app Mobile, đối tác bán vé) dễ dàng tích hợp API của mình mà không cần hỏi lại tài liệu.
+4. Tại sao phải tách config, .env, source code, log khi chạy thực tế:
+
+.env: Chứa các thông tin nhạy cảm và thay đổi theo từng máy (như URL, mật khẩu database). File này được đưa vào .gitignore để không bị lộ source code lên GitHub.
+config (app.php): Giúp tập trung cấu hình. Thay vì viết cứng (hard-code) số 4 vào logic, ta gọi config['app']['max_tickets']. Sau này muốn đổi tối đa 5 vé/người chỉ cần sửa 1 chỗ.
+Source code: Tách biệt giúp code gọn gàng, tái sử dụng được class (ví dụ class Response::json() gọi được ở nhiều controller).
+Log lỗi (storage/logs/php-error.log): Ở môi trường thật, biến APP_DEBUG sẽ bị tắt (false). Ta tuyệt đối không được in lỗi vỡ giao diện ra màn hình (hacker sẽ đọc được cấu trúc thư mục). Thay vào đó, lỗi chạy ngầm sẽ được ghi vào file log để dev mở ra xem và sửa.
+5. Ưu tiên mở rộng hệ thống ở tuần sau:
+
+Em sẽ ưu tiên: Kết nối Database trước.
+Lý do: Tính năng cốt lõi (Core business) của một hệ thống Event Booking là quản lý kho vé. Hiện tại dùng Array, dữ liệu "bay màu" ngay sau khi request kết thúc. Cần có Database (như MySQL) để thực sự INSERT một bản ghi đặt vé mới, và UPDATE (trừ đi) số available_tickets. Chỉ khi có Database để lưu trạng thái dữ liệu thật, các phần tiếp theo như Đăng nhập (Auth), hay Thêm/Sửa/Xóa dữ liệu sự kiện (CRUD) mới có nền tảng để thực hiện.
