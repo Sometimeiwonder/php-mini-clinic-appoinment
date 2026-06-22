@@ -7,15 +7,18 @@ class PatientRepository
     public function countAll(string $keyword = ''): int
     {
         $sql = "SELECT COUNT(*) AS total FROM patients";
-        $params = [];
 
         if ($keyword !== '') {
-            $sql .= " WHERE name LIKE :keyword OR email LIKE :keyword OR phone LIKE :keyword";
-            $params['keyword'] = '%' . $keyword . '%';
+            $sql .= " WHERE name LIKE :kw1 OR email LIKE :kw2 OR phone LIKE :kw3";
+            $kw = '%' . $keyword . '%';
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':kw1', $kw, PDO::PARAM_STR);
+            $stmt->bindValue(':kw2', $kw, PDO::PARAM_STR);
+            $stmt->bindValue(':kw3', $kw, PDO::PARAM_STR);
+        } else {
+            $stmt = $this->db->prepare($sql);
         }
-
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute($params);
+        $stmt->execute();
         return (int) ($stmt->fetch()['total'] ?? 0);
     }
 
@@ -32,18 +35,19 @@ class PatientRepository
         }
 
         $sql = "SELECT id, name, email, phone, gender, created_at FROM patients";
-        $params = [];
 
         if ($keyword !== '') {
-            $sql .= " WHERE name LIKE :keyword OR email LIKE :keyword OR phone LIKE :keyword";
-            $params['keyword'] = '%' . $keyword . '%';
+            $sql .= " WHERE name LIKE :kw1 OR email LIKE :kw2 OR phone LIKE :kw3";
         }
 
         $sql .= " ORDER BY {$sort} {$direction} LIMIT :limit OFFSET :offset";
 
         $stmt = $this->db->prepare($sql);
-        foreach ($params as $key => $value) {
-            $stmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
+        if ($keyword !== '') {
+            $kw = '%' . $keyword . '%';
+            $stmt->bindValue(':kw1', $kw, PDO::PARAM_STR);
+            $stmt->bindValue(':kw2', $kw, PDO::PARAM_STR);
+            $stmt->bindValue(':kw3', $kw, PDO::PARAM_STR);
         }
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);

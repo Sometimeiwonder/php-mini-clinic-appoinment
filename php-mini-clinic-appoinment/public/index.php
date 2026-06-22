@@ -33,4 +33,10 @@ $router->get('/appointments/edit', [AppointmentController::class, 'edit']);
 $router->post('/appointments/update', [AppointmentController::class, 'update']);
 $router->post('/appointments/delete', [AppointmentController::class, 'delete']);
 
-$router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
+try {
+    $router->dispatch($_SERVER['REQUEST_METHOD'], $_SERVER['REQUEST_URI']);
+} catch (Exception $e) {
+    error_log($e->getMessage());
+    http_response_code(500);
+    view('errors/500');
+}
